@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Planning Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Flight Planning Dashboard</h1>
+            <div class="clock" id="clock">12:00:00 UTC</div>
+        </header>
+        
+        <nav class="sidebar">
+            <div class="nav-item active" id="nav-weather" tabindex="0">Weather Briefing</div>
+            <div class="nav-item" id="nav-notams" tabindex="0">NOTAMs</div>
+            <div class="nav-item" id="nav-radar" tabindex="0">Radar Map</div>
+            <div class="nav-item" id="nav-metar" tabindex="0">METAR/TAF</div>
+            <div class="nav-item" id="nav-settings" tabindex="0">Settings</div>
+        </nav>
+        
+        <main class="main" id="main-content">
+            <!-- Content will be loaded dynamically -->
+        </main>
+    </div>
+
+    <script src="js/clock.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/content-loaders.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
