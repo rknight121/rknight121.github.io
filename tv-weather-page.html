@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Aviation Weather</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+        }
+        .menu-item {
+            padding: 20px;
+            margin: 10px 0;
+            background: #333;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .menu-item:focus, .menu-item.selected {
+            background: #0066cc;
+            outline: none;
+        }
+        .instructions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Aviation Weather</h1>
+    <div id="app">
+        <div class="menu-item" tabindex="1">Search Airport</div>
+        <div class="menu-item" tabindex="2">Flight Planning</div>
+        <div class="menu-item" tabindex="3">Weather Maps</div>
+        <div class="menu-item" tabindex="4">Wind Data</div>
+        <div class="menu-item" tabindex="5">Visibility</div>
+    </div>
+    <div class="instructions">
+        Use TV remote arrows to navigate • Press Enter/OK to select
+    </div>
+    <script>
+        // Add basic TV remote navigation
+        const items = document.querySelectorAll('.menu-item');
+        let currentIndex = 0;
+
+        function selectItem(index) {
+            items.forEach(item => item.classList.remove('selected'));
+            items[index].classList.add('selected');
+            items[index].focus();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowDown':
+                    currentIndex = Math.min(currentIndex + 1, items.length - 1);
+                    selectItem(currentIndex);
+                    break;
+                case 'ArrowUp':
+                    currentIndex = Math.max(currentIndex - 1, 0);
+                    selectItem(currentIndex);
+                    break;
+            }
+        });
+
+        // Select first item on load
+        selectItem(0);
+    </script>
+</body>
+</html>
