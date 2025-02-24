@@ -1,0 +1,134 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronRight, ChevronLeft, Search, Plane, Cloud, Wind, Sun } from 'lucide-react';
+
+const TVWeatherNav = () => {
+  const [selectedMenuItem, setSelectedMenuItem] = useState(0);
+  const [selectedSubMenuItem, setSelectedSubMenuItem] = useState(-1);
+  const [inputValue, setInputValue] = useState('');
+  
+  const mainMenuItems = [
+    { icon: <Search size={32} />, label: 'Search Airport' },
+    { icon: <Plane size={32} />, label: 'Flight Planning' },
+    { icon: <Cloud size={32} />, label: 'Weather Maps' },
+    { icon: <Wind size={32} />, label: 'Wind Data' },
+    { icon: <Sun size={32} />, label: 'Visibility' }
+  ];
+
+  const subMenuItems = {
+    'Flight Planning': ['Route Planning', 'METAR/TAF', 'NOTAMs'],
+    'Weather Maps': ['Radar', 'Satellite', 'Surface Analysis'],
+    'Wind Data': ['Surface Winds', 'Wind Aloft', 'Turbulence'],
+    'Visibility': ['Ceiling', 'Visibility', 'Precipitation']
+  };
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      switch(e.key) {
+        case 'ArrowRight':
+          if (selectedSubMenuItem === -1) {
+            setSelectedSubMenuItem(0);
+          }
+          break;
+        case 'ArrowLeft':
+          setSelectedSubMenuItem(-1);
+          break;
+        case 'ArrowUp':
+          if (selectedSubMenuItem === -1) {
+            setSelectedMenuItem(prev => (prev > 0 ? prev - 1 : mainMenuItems.length - 1));
+          } else {
+            const subItems = subMenuItems[mainMenuItems[selectedMenuItem].label] || [];
+            setSelectedSubMenuItem(prev => (prev > 0 ? prev - 1 : subItems.length - 1));
+          }
+          break;
+        case 'ArrowDown':
+          if (selectedSubMenuItem === -1) {
+            setSelectedMenuItem(prev => (prev < mainMenuItems.length - 1 ? prev + 1 : 0));
+          } else {
+            const subItems = subMenuItems[mainMenuItems[selectedMenuItem].label] || [];
+            setSelectedSubMenuItem(prev => (prev < subItems.length - 1 ? prev + 1 : 0));
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedMenuItem, selectedSubMenuItem]);
+
+  const renderSearchInput = () => {
+    if (mainMenuItems[selectedMenuItem].label === 'Search Airport' && selectedSubMenuItem === 0) {
+      return (
+        <div className="p-6 bg-gray-800 rounded-lg">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            className="w-full p-4 text-2xl bg-gray-700 text-white rounded"
+            placeholder="Enter Airport Code (e.g., KJFK)"
+          />
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-8">
+      <div className="flex">
+        {/* Main Menu */}
+        <div className="w-1/3">
+          {mainMenuItems.map((item, index) => (
+            <div
+              key={item.label}
+              className={`flex items-center p-6 mb-4 rounded-lg cursor-pointer transition-all ${
+                selectedMenuItem === index ? 'bg-blue-600 scale-105' : 'bg-gray-800 hover:bg-gray-700'
+              }`}
+              onClick={() => {
+                setSelectedMenuItem(index);
+                setSelectedSubMenuItem(-1);
+              }}
+            >
+              <div className="mr-4">{item.icon}</div>
+              <span className="text-2xl">{item.label}</span>
+              {selectedMenuItem === index && selectedSubMenuItem === -1 && (
+                <ChevronRight className="ml-auto" size={24} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Sub Menu */}
+        <div className="w-2/3 pl-8">
+          {selectedMenuItem !== -1 && subMenuItems[mainMenuItems[selectedMenuItem].label] && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              {subMenuItems[mainMenuItems[selectedMenuItem].label].map((item, index) => (
+                <div
+                  key={item}
+                  className={`p-6 mb-4 rounded-lg cursor-pointer transition-all ${
+                    selectedSubMenuItem === index ? 'bg-blue-600' : 'hover:bg-gray-700'
+                  }`}
+                  onClick={() => setSelectedSubMenuItem(index)}
+                >
+                  <span className="text-2xl">{item}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {renderSearchInput()}
+        </div>
+      </div>
+
+      {/* Navigation Help */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-4">
+        <div className="flex justify-center space-x-8 text-lg">
+          <span>↑↓ Navigate Menu</span>
+          <span>←→ Enter/Exit Submenu</span>
+          <span>OK Select</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TVWeatherNav;
