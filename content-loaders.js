@@ -1,4 +1,268 @@
-// Functions for loading different content sections
+async function loadWeatherContent() {
+    try {
+        const mainContent = document.getElementById('main-content');
+        if (!mainContent) return;
+        
+        // Show loading state
+        mainContent.innerHTML = `
+            <div class="map-widget">
+                <div class="widget-header">
+                    <h2>Weather Radar</h2>
+                </div>
+                <div class="map-container" id="radar-map">
+                    <img src="${radarData.imageUrl}" alt="National Weather Radar Map" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error in loadWeatherContent:', error);
+        const mainContent = document.getElementById('main-content');
+        
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div class="error-message">
+                    <h3>Error Loading Weather Data</h3>
+                    <p>${error.message || 'An unexpected error occurred while loading weather data.'}</p>
+                </div>
+                <button class="nav-item" onclick="loadWeatherContent()">Retry</button>
+            `;
+        }
+    }weather-widget">
+                <div class="widget-header">
+                    <h2>Forecast</h2>
+                </div>
+                <div class="forecast-grid" id="forecast-container">
+                    ${taf ? formatForecastItems(taf) : '<div class="forecast-item"><h3>No forecast data available</h3></div>'}
+                </div>
+            </div>
+            
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading weather data...</p>
+            </div>
+        `;
+        
+        // Default airport code
+        const defaultAirport = localStorage.getItem('defaultAirport') || 'KJFK';
+        
+        // Fetch the weather data with METAR and TAF
+        let weatherData;
+        
+        try {
+            // Fetch both METAR and TAF in a single call
+            weatherData = await WeatherAPI.getMetarAndTaf(defaultAirport);
+        } catch (error) {
+            console.error('Error fetching aviation weather data:', error);
+            
+            // Fallback to static data if API fails
+            mainContent.innerHTML = `
+                <div class="error-message">
+                    <h3>Unable to fetch real-time weather data</h3>
+                    <p>${error.message}</p>
+                    <p>Showing cached information. Please check your connection and try again.</p>
+                </div>
+                
+                <div class="weather-widget">
+                    <div class="widget-header">
+                        <h2>Current Conditions (Cached)</h2>
+                        <span id="weather-timestamp">Last updated: ${getCurrentUTCTime()}</span>
+                    </div>
+                    <div id="current-conditions">
+                        <h3>KJFK - John F Kennedy Intl</h3>
+                        <p>Wind: 270° at 15kt</p>
+                        <p>Visibility: 10SM</p>
+                        <p>Ceiling: FEW038 SCT120</p>
+                        <p>Temperature: 24°C / Dew Point: 18°C</p>
+                        <p>Altimeter: 29.92 inHg</p>
+                        <p>Remarks: AO2 SLP132 T02390183</p>
+                    </div>
+                </div>
+                
+                <div class="weather-widget">
+                    <div class="widget-header">
+                        <h2>3-Hour Forecast (Cached)</h2>
+                    </div>
+                    <div class="forecast-grid" id="forecast-container">
+                        <div class="forecast-item">
+                            <h3>15:00 UTC</h3>
+                            <p>Wind: 270° at 15kt</p>
+                            <p>Visibility: 10SM</p>
+                            <p>Ceiling: FEW038 SCT120</p>
+                            <p>Temperature: 24°C</p>
+                        </div>
+                        <div class="forecast-item">
+                            <h3>18:00 UTC</h3>
+                            <p>Wind: 280° at 18kt</p>
+                            <p>Visibility: 8SM</p>
+                            <p>Ceiling: SCT035 BKN150</p>
+                            <p>Temperature: 22°C</p>
+                        </div>
+                        <div class="forecast-item">
+                            <h3>21:00 UTC</h3>
+                            <p>Wind: 290° at 20kt</p>
+                            <p>Visibility: 5SM</p>
+                            <p>Ceiling: BKN030 OVC100</p>
+                            <p>Temperature: 20°C</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        if (!weatherData || weatherData.length === 0) {
+            mainContent.innerHTML = `
+                <div class="error-message">
+                    <h3>No weather data available</h3>
+                    <p>Unable to find weather information for ${defaultAirport}.</p>
+                </div>
+                <button class="nav-item" onclick="loadWeatherContent()">Retry</button>
+            `;
+            return;
+        }
+        
+        // Get the METAR data from the response
+        const metar = weatherData[0];
+        const taf = metar.taf || null;
+        
+        // Format the METAR data
+        const formatMetarContent = (metar) => {
+            if (!metar) {
+                return '<p>No METAR data available</p>';
+            }
+            
+            // Extract values from the METAR data
+            const icao = metar.icao_id || 'Unknown';
+            const stationName = metar.site || 'Unknown Location';
+            const windDir = metar.wind_dir_degrees !== null ? metar.wind_dir_degrees : '---';
+            const windSpeed = metar.wind_speed_kt !== null ? metar.wind_speed_kt : '---';
+            const visibility = metar.visibility_statute_mi !== null ? `${metar.visibility_statute_mi}SM` : '---';
+            const temp = metar.temp_c !== null ? `${metar.temp_c}°C` : '---';
+            const dewpoint = metar.dewpoint_c !== null ? `${metar.dewpoint_c}°C` : '---';
+            const altimeter = metar.altim_in_hg !== null ? `${metar.altim_in_hg} inHg` : '---';
+            
+            // Format sky conditions
+            let skyConditions = 'Clear';
+            if (metar.sky_condition && metar.sky_condition.length > 0) {
+                skyConditions = metar.sky_condition.map(layer => 
+                    `${layer.sky_cover} ${layer.cloud_base_ft_agl || '---'}`
+                ).join(' ');
+            }
+            
+            // Format observation time
+            const obsTime = metar.observation_time ? 
+                new Date(metar.observation_time).toUTCString().split(' ')[4] + ' UTC' : 
+                'Unknown';
+            
+            return `
+                <h3>${icao} - ${stationName}</h3>
+                <p>Wind: ${windDir}° at ${windSpeed}kt</p>
+                <p>Visibility: ${visibility}</p>
+                <p>Ceiling: ${skyConditions}</p>
+                <p>Temperature: ${temp} / Dew Point: ${dewpoint}</p>
+                <p>Altimeter: ${altimeter}</p>
+                <p>Observed: ${obsTime}</p>
+                <p>Raw: ${metar.raw_text || 'No raw METAR available'}</p>
+            `;
+        };
+        
+        // Parse and format TAF forecast periods
+        const formatForecastItems = (taf) => {
+            if (!taf || !taf.raw_text) {
+                return '<div class="forecast-item"><h3>No forecast data available</h3></div>';
+            }
+            
+            // Get the raw TAF
+            const rawTaf = taf.raw_text;
+            
+            // Split the TAF into forecast periods
+            const forecastPeriods = rawTaf.split(/\s+(FM|BECMG|TEMPO|PROB)/);
+            
+            // Take only the first few forecast periods (header + 3 periods)
+            const mainPeriods = forecastPeriods.slice(0, 7);
+            
+            // Format as forecast items
+            let forecastHtml = '';
+            
+            // Process the initial forecast period
+            if (mainPeriods[0]) {
+                const parts = mainPeriods[0].trim().split(' ');
+                let validTime = parts[1] || '';
+                if (validTime && validTime.includes('/')) {
+                    const startTime = validTime.split('/')[0].slice(-6);
+                    const hours = startTime.slice(0, 2);
+                    const minutes = startTime.slice(2, 4);
+                    
+                    // Extract forecast details
+                    const windInfo = parts.find(p => p.includes('KT')) || '';
+                    const windDir = windInfo ? windInfo.slice(0, 3) : '---';
+                    const windSpeed = windInfo ? windInfo.slice(3, 5) : '---';
+                    
+                    const visibilityPart = parts.find(p => p.includes('SM')) || '';
+                    const visibility = visibilityPart || '---';
+                    
+                    forecastHtml += `
+                        <div class="forecast-item">
+                            <h3>${hours}:${minutes} UTC</h3>
+                            <p>Wind: ${windDir}° at ${windSpeed}kt</p>
+                            <p>Visibility: ${visibility}</p>
+                            <p>Conditions: ${parts.slice(parts.indexOf(visibility) + 1).join(' ')}</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Add up to 2 more forecast periods
+            for (let i = 1; i < mainPeriods.length && i <= 5; i += 2) {
+                const periodType = mainPeriods[i];
+                const periodData = mainPeriods[i + 1];
+                
+                if (periodData && periodType === 'FM') {
+                    const parts = periodData.trim().split(' ');
+                    
+                    // For FM periods, the first part is the time code like '121800'
+                    let timeCode = parts[0] || '';
+                    const hours = timeCode.slice(2, 4);
+                    const minutes = timeCode.slice(4, 6);
+                    
+                    // Extract forecast details
+                    const windInfo = parts.find(p => p.includes('KT')) || '';
+                    const windDir = windInfo ? windInfo.slice(0, 3) : '---';
+                    const windSpeed = windInfo ? windInfo.slice(3, 5) : '---';
+                    
+                    const visibilityPart = parts.find(p => p.includes('SM')) || '';
+                    const visibility = visibilityPart || '---';
+                    
+                    forecastHtml += `
+                        <div class="forecast-item">
+                            <h3>${hours}:${minutes} UTC</h3>
+                            <p>Wind: ${windDir}° at ${windSpeed}kt</p>
+                            <p>Visibility: ${visibility}</p>
+                            <p>Conditions: ${parts.slice(parts.indexOf(visibilityPart) + 1 || parts.length).join(' ')}</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            return forecastHtml || '<div class="forecast-item"><h3>No parsed forecast periods available</h3></div>';
+        };
+        
+        // Get radar data
+        const radarData = WeatherAPI.getRadarUrl();
+        
+        // Build the current conditions and forecast HTML
+        mainContent.innerHTML = `
+            <div class="weather-widget">
+                <div class="widget-header">
+                    <h2>Current Conditions</h2>
+                    <span id="weather-timestamp">Last updated: ${getCurrentUTCTime()}</span>
+                </div>
+                <div id="current-conditions">
+                    ${formatMetarContent(metar)}
+                </div>
+            </div>
+            
+            <div class="// Functions for loading different content sections
 // In a real application, these would make API calls to fetch actual data
 
 // Utility function to get formatted UTC time
