@@ -4,7 +4,7 @@
 // Configuration
 const API_CONFIG = {
     // URL of your proxy server
-    baseUrl: 'https://proxy-server4v.vercel.app/api/',
+    baseUrl: 'https://your-proxy-server.vercel.app/api/',
     timeout: 15000 // 15 seconds
 };
 
@@ -103,18 +103,23 @@ function formatTimestamp(timestamp) {
         );
         return date.toUTCString();
     } catch (error) {
+        console.error('Error formatting timestamp:', timestamp, error);
         return 'Invalid date';
     }
 }
 
-// Convert string date to formatted date
+// Format date strings from NOAA API
 function formatDateString(dateStr) {
     if (!dateStr) return 'Unknown';
     
     try {
+        if (typeof dateStr === 'string' && dateStr.includes('UTC')) {
+            return dateStr; // Already formatted
+        }
         const date = new Date(dateStr);
         return date.toUTCString();
     } catch (error) {
+        console.error('Error formatting date string:', dateStr, error);
         return dateStr;
     }
 }
@@ -155,42 +160,39 @@ const WeatherAPI = {
         }
     },
     
-// Get both METAR and TAF data
-async getMetarAndTaf(icao, format = 'json') {
-    try {
-        // First get METAR data
-        const metarUrl = `${API_CONFIG.baseUrl}metar?ids=${icao}&format=${format}`;
-        const metarResponse = await fetchWithTimeout(metarUrl);
-        const metarData = await parseResponse(metarResponse, format);
-        
-        console.log('METAR data received:', metarData);
-        
-        // Then get TAF data
+    // Get both METAR and TAF data in one call
+    async getMetarAndTaf(icao, format = 'json') {
         try {
-            const tafUrl = `${API_CONFIG.baseUrl}taf?ids=${icao}&format=${format}`;
-            const tafResponse = await fetchWithTimeout(tafUrl);
-            const tafData = await parseResponse(tafResponse, format);
-            
-            console.log('TAF data received:', tafData);
-            
-            // Combine the data
-            if (metarData && metarData.length > 0 && tafData && tafData.length > 0) {
-                // Check if we need to add the TAF to the METAR object or if it's already there
-                if (!metarData[0].taf && !metarData[0].rawTaf) {
+            // Use the combined endpoint if available
+            try {
+                const url = `${API_CONFIG.baseUrl}metar?ids=${icao}&format=${format}&taf=true`;
+                console.log('Requesting METAR with TAF from proxy:', url);
+                
+                const response = await fetchWithTimeout(url);
+                const data = await parseResponse(response, format);
+                
+                console.log('Received combined METAR+TAF data:', data);
+                return data;
+            } catch (error) {
+                console.warn('Combined endpoint failed, trying separate requests:', error);
+                
+                // If combined endpoint fails, try separate requests
+                const [metarData, tafData] = await Promise.all([
+                    this.getMetar(icao, format),
+                    this.getTaf(icao, format)
+                ]);
+                
+                // If we have metar data, attach taf data to it
+                if (metarData && metarData.length > 0 && tafData && tafData.length > 0) {
                     metarData[0].taf = tafData[0];
                 }
+                
+                return metarData;
             }
         } catch (error) {
-            console.warn('Error getting TAF data:', error);
-            // Continue with just METAR data
+            console.error('Error fetching METAR and TAF:', error);
+            throw error;
         }
-        
-        return metarData;
-    } catch (error) {
-        console.error('Error fetching METAR and TAF:', error);
-        throw error;
-    }
-
     },
     
     // Placeholder for future NOTAM integration
@@ -299,27 +301,27 @@ async getMetarAndTaf(icao, format = 'json') {
         };
     },
     
-// Format TAF data for display
-formatTafForDisplay(taf) {
-    if (!taf) {
-        return {
-            html: '<div class="forecast-item"><h3>No TAF data available</h3></div>'
-        };
+    // Format TAF data for display
+    formatTafForDisplay(taf) {
+        if (!taf) {
+            return {
+                html: '<div class="forecast-item"><h3>No TAF data available</h3></div>'
+            };
+        }
+        
+        // Format the TAF text with line breaks for readability
+        const rawTaf = taf.rawTAF || taf.raw_text || '';
+        const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
+        
+        const html = `
+            <div class="forecast-item">
+                <h3>TAF</h3>
+                <p style="font-family:monospace; white-space:pre-wrap;">${formattedTaf}</p>
+            </div>
+        `;
+        
+        return { html, rawTaf, formattedTaf };
     }
-    
-    // Format the TAF text with line breaks for readability
-    const rawTaf = taf.rawTaf || taf.rawTAF || taf.raw_text || '';
-    const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
-    
-    const html = `
-        <div class="forecast-item">
-            <h3>TAF</h3>
-            <p style="font-family:monospace; white-space:pre-wrap;">${formattedTaf}</p>
-        </div>
-    `;
-    
-    return { html, rawTaf, formattedTaf };
-}
 };
 
 // Log that the API is ready
