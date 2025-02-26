@@ -5,25 +5,6 @@ function getCurrentUTCTime() {
     return new Date().toUTCString().split(' ')[4] + ' UTC';
 }
 
-// Error handling wrapper for content loaders
-function safelyLoadContent(contentFunction) {
-    try {
-        return contentFunction();
-    } catch (error) {
-        console.error('Error loading content:', error);
-        const mainContent = document.getElementById('main-content');
-        if (mainContent) {
-            mainContent.innerHTML = `
-                <div class="error-message">
-                    <h3>Error Loading Content</h3>
-                    <p>There was a problem loading the requested information. Please try again.</p>
-                </div>
-                <button class="nav-item" onclick="window.location.reload()">Reload Page</button>
-            `;
-        }
-    }
-}
-
 // Load weather content
 async function loadWeatherContent() {
     try {
@@ -41,7 +22,7 @@ async function loadWeatherContent() {
         // Default airport code
         const defaultAirport = localStorage.getItem('defaultAirport') || 'KJFK';
         
-        // Fetch the weather data
+        // Fetch the weather data with METAR and TAF
         let weatherData;
         
         try {
@@ -66,26 +47,16 @@ async function loadWeatherContent() {
             return;
         }
         
-        // Get the METAR and TAF data
+        // Get the METAR data from the response
         const metar = weatherData[0];
-        const taf = metar.taf || null;
         
-        // Extract values from the METAR data
-        const icao = metar.icao_id || 'Unknown';
-        const stationName = metar.site || 'Unknown Location';
-        const windDir = metar.wind_dir_degrees !== null ? metar.wind_dir_degrees : '---';
-        const windSpeed = metar.wind_speed_kt !== null ? metar.wind_speed_kt : '---';
-        const visibility = metar.visibility_statute_mi !== null ? `${metar.visibility_statute_mi}SM` : '---';
-        const temp = metar.temp_c !== null ? `${metar.temp_c}°C` : '---';
-        const dewpoint = metar.dewpoint_c !== null ? `${metar.dewpoint_c}°C` : '---';
-        const altimeter = metar.altim_in_hg !== null ? `${metar.altim_in_hg} inHg` : '---';
+        // Use the helper functions from the API to format the data
+        const metarDisplay = WeatherAPI.formatMetarForDisplay(metar);
         
-        // Format sky conditions
-        let skyConditions = 'Clear';
-        if (metar.sky_condition && metar.sky_condition.length > 0) {
-            skyConditions = metar.sky_condition.map(layer => 
-                `${layer.sky_cover} ${layer.cloud_base_ft_agl || '---'}`
-            ).join(' ');
+        // Format TAF data if available
+        let tafDisplay = { html: '<div class="forecast-item"><h3>No TAF data available</h3></div>' };
+        if (metar.taf) {
+            tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
         }
         
         // Get radar data
@@ -99,13 +70,7 @@ async function loadWeatherContent() {
                     <span id="weather-timestamp">Last updated: ${getCurrentUTCTime()}</span>
                 </div>
                 <div id="current-conditions">
-                    <h3>${icao} - ${stationName}</h3>
-                    <p>Wind: ${windDir}° at ${windSpeed}kt</p>
-                    <p>Visibility: ${visibility}</p>
-                    <p>Ceiling: ${skyConditions}</p>
-                    <p>Temperature: ${temp} / Dew Point: ${dewpoint}</p>
-                    <p>Altimeter: ${altimeter}</p>
-                    <p>Raw: ${metar.raw_text || 'No raw METAR available'}</p>
+                    ${metarDisplay.html}
                 </div>
             </div>
             
@@ -114,13 +79,7 @@ async function loadWeatherContent() {
                     <h2>Forecast</h2>
                 </div>
                 <div class="forecast-grid" id="forecast-container">
-                    ${taf && taf.raw_text ? 
-                        `<div class="forecast-item">
-                            <h3>TAF</h3>
-                            <p style="font-family:monospace; white-space:pre-wrap;">${taf.raw_text.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '\n$&')}</p>
-                        </div>` : 
-                        '<div class="forecast-item"><h3>No forecast data available</h3></div>'
-                    }
+                    ${tafDisplay.html}
                 </div>
             </div>
             
@@ -197,29 +156,26 @@ async function loadMetarContent() {
                 
                 // Get METAR and TAF info
                 const metar = weatherData[0];
-                const taf = metar.taf || null;
                 
-                // Format airport name
-                const airportName = metar.site || 'Unknown Airport';
+                // Use the helper functions from the API to format the data
+                const metarDisplay = WeatherAPI.formatMetarForDisplay(metar);
                 
-                // Format raw METAR text
-                const metarText = metar.raw_text || 'No METAR available';
-                
-                // Format TAF text with line breaks for readability
-                const tafText = taf && taf.raw_text ? 
-                    taf.raw_text.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&') : 
-                    'No TAF available';
+                // Format TAF data if available
+                let tafDisplay = { html: '<p style="font-family:monospace; font-size: 20px;">No TAF available</p>' };
+                if (metar.taf) {
+                    tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
+                }
                 
                 return `
                     <div style="margin-bottom:30px;">
-                        <h3>${icao} - ${airportName}</h3>
+                        <h3>${metarDisplay.icao} - ${metarDisplay.stationName}</h3>
                         <div style="background:#112240; padding:20px; border-radius:8px; margin-bottom:20px;">
                             <h4>METAR</h4>
-                            <p style="font-family:monospace; font-size: 20px;">${metarText}</p>
+                            <p style="font-family:monospace; font-size: 20px;">${metarDisplay.rawMetar}</p>
                         </div>
                         <div style="background:#112240; padding:20px; border-radius:8px;">
                             <h4>TAF</h4>
-                            <p style="font-family:monospace; font-size: 20px;">${tafText}</p>
+                            <p style="font-family:monospace; font-size: 20px;">${tafDisplay.formattedTaf || 'No TAF available'}</p>
                         </div>
                     </div>
                 `;
@@ -322,30 +278,28 @@ async function loadMetarContent() {
     }
 }
 
-// Load NOTAMs content - removed mock data, now shows API limitation message
+// Load NOTAMs content
 function loadNotamContent() {
-    safelyLoadContent(() => {
-        const mainContent = document.getElementById('main-content');
-        if (!mainContent) return;
-        
-        mainContent.innerHTML = `
-            <div class="notam-widget">
-                <div class="widget-header">
-                    <h2>NOTAMs</h2>
-                </div>
-                <div style="padding: 20px; text-align: center;">
-                    <p>NOTAMs are not available through the NOAA Aviation Weather API.</p>
-                    <p>To access NOTAMs, you would need to integrate with a separate service such as:</p>
-                    <ul style="text-align: left; margin: 20px auto; max-width: 500px;">
-                        <li>FAA NOTAM System API</li>
-                        <li>Commercial aviation data providers</li>
-                        <li>Direct integration with official aviation sources</li>
-                    </ul>
-                    <p>For flight planning purposes, always check official sources for current NOTAMs.</p>
-                </div>
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
+    
+    mainContent.innerHTML = `
+        <div class="notam-widget">
+            <div class="widget-header">
+                <h2>NOTAMs</h2>
             </div>
-        `;
-    });
+            <div style="padding: 20px; text-align: center;">
+                <p>NOTAMs are not available through the NOAA Aviation Weather API.</p>
+                <p>To access NOTAMs, you would need to integrate with a separate service such as:</p>
+                <ul style="text-align: left; margin: 20px auto; max-width: 500px;">
+                    <li>FAA NOTAM System API</li>
+                    <li>Commercial aviation data providers</li>
+                    <li>Direct integration with official aviation sources</li>
+                </ul>
+                <p>For flight planning purposes, always check official sources for current NOTAMs.</p>
+            </div>
+        </div>
+    `;
 }
 
 // Load radar content
@@ -498,94 +452,21 @@ async function loadRadarContent() {
     }
 }
 
+// Load settings content
 function loadSettingsContent() {
-    safelyLoadContent(() => {
-        const mainContent = document.getElementById('main-content');
-        if (!mainContent) return;
-        
-        mainContent.innerHTML = `
-            <div class="weather-widget">
-                <div class="widget-header">
-                    <h2>Settings</h2>
-                </div>
-                <div style="margin-top:20px;">
-                    <h3>Display Settings</h3>
-                    <div style="margin:20px 0;">
-                        <label style="display:block; margin-bottom:10px;">Default Airport:</label>
-                        <input type="text" id="default-airport" value="${localStorage.getItem('defaultAirport') || 'KJFK'}" style="padding:12px; width:250px; font-size: 18px; background-color: #112240; color: white; border: 1px solid #64ffda; border-radius: 4px;">
-                    </div>
-                    
-                    <div style="margin:20px 0;">
-                        <label style="display:block; margin-bottom:10px;">Units:</label>
-                        <select id="units-selector" style="padding:12px; width:250px; font-size: 18px; background-color: #112240; color: white; border: 1px solid #64ffda; border-radius: 4px;">
-                            <option value="imperial" ${localStorage.getItem('units') === 'imperial' ? 'selected' : ''}>Imperial (°F, inHg, SM)</option>
-                            <option value="metric" ${localStorage.getItem('units') === 'metric' ? 'selected' : ''}>Metric (°C, hPa, km)</option>
-                            <option value="mixed" ${localStorage.getItem('units') === 'mixed' ? 'selected' : ''}>Mixed (°C, inHg, SM)</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin:20px 0;">
-                        <label style="display:block; margin-bottom:10px;">Auto-refresh Interval:</label>
-                        <select id="refresh-interval" style="padding:12px; width:250px; font-size: 18px; background-color: #112240; color: white; border: 1px solid #64ffda; border-radius: 4px;">
-                            <option value="60000" ${localStorage.getItem('refreshInterval') === '60000' ? 'selected' : ''}>1 minute</option>
-                            <option value="300000" ${localStorage.getItem('refreshInterval') === '300000' ? 'selected' : ''}>5 minutes</option>
-                            <option value="600000" ${localStorage.getItem('refreshInterval') === '600000' ? 'selected' : ''}>10 minutes</option>
-                            <option value="1800000" ${localStorage.getItem('refreshInterval') === '1800000' ? 'selected' : ''}>30 minutes</option>
-                            <option value="0" ${localStorage.getItem('refreshInterval') === '0' ? 'selected' : ''}>Never</option>
-                        </select>
-                    </div>
-                    
-                    <button id="save-settings" class="nav-item" style="margin-top:30px; display:inline-block; padding:15px 25px;" tabindex="0">Save Settings</button>
-                </div>
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
+    
+    mainContent.innerHTML = `
+        <div class="weather-widget">
+            <div class="widget-header">
+                <h2>Settings</h2>
             </div>
-            
-            <div class="weather-widget">
-                <div class="widget-header">
-                    <h2>TV Remote Controls</h2>
-                </div>
+            <div style="margin-top:20px;">
+                <h3>Display Settings</h3>
                 <div style="margin:20px 0;">
-                    <p><strong>Arrow Keys:</strong> Navigate between items</p>
-                    <p><strong>Enter/OK:</strong> Select or activate items</p>
-                    <p><strong>Back Button:</strong> Return to navigation menu</p>
-                    <p><strong>Home Button:</strong> Return to Weather Briefing</p>
-                </div>
-            </div>
-            
-            <div class="weather-widget">
-                <div class="widget-header">
-                    <h2>About</h2>
-                </div>
-                <div style="margin:20px 0;">
-                    <p>Flight Planning Dashboard</p>
-                    <p>Weather data provided by NOAA Aviation Weather Center</p>
-                    <p>Radar imagery from the National Weather Service</p>
-                    <p><a href="https://aviationweather.gov/data/api/" style="color: #64ffda;" target="_blank">Aviation Weather API Documentation</a></p>
-                </div>
-            </div>
-        `;
-        
-        // Add event listener for the save button
-        const saveButton = document.getElementById('save-settings');
-        if (saveButton) {
-            saveButton.addEventListener('click', () => {
-                const defaultAirport = document.getElementById('default-airport').value.trim().toUpperCase();
-                const units = document.getElementById('units-selector').value;
-                const refreshInterval = document.getElementById('refresh-interval').value;
-                
-                // Save to localStorage
-                localStorage.setItem('defaultAirport', defaultAirport);
-                localStorage.setItem('units', units);
-                localStorage.setItem('refreshInterval', refreshInterval);
-                
-                alert('Settings saved successfully!');
-            });
-            
-            saveButton.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    saveButton.click();
-                }
-            });
-        }
-    });
+                    <label style="display:block; margin-bottom:10px;">Default Airport:</label>
+                    <input type="text" id="default-airport" value="${localStorage.getItem('defaultAirport') || 'KJFK'}" style="padding:12px; width:250
+    `;
 }
+    
