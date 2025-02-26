@@ -3,7 +3,7 @@
 
 // Configuration
 const API_CONFIG = {
-    baseUrl: 'https://aviationweather.gov/api/data/',
+    baseUrl: 'https://proxy-server4v.vercel.app/api/',
     timeout: 10000 // 10 seconds
 };
 
@@ -58,40 +58,50 @@ async function parseResponse(response, format) {
 
 // Weather API functions
 const WeatherAPI = {
-    // Get METAR data for airport(s)
-    async getMetar(icao, format = 'json') {
-        try {
-            const url = `${API_CONFIG.baseUrl}metar?ids=${icao}&format=${format}`;
-            const response = await fetchWithTimeout(url);
-            return await parseResponse(response, format);
-        } catch (error) {
-            console.error('Error fetching METAR:', error);
-            throw error;
+   // Get METAR data for airport(s)
+async getMetar(icao, format = 'json') {
+    try {
+        const url = `${API_CONFIG.baseUrl}metar?ids=${icao}&format=${format}`;
+        const response = await fetchWithTimeout(url);
+        return await parseResponse(response, format);
+    } catch (error) {
+        console.error('Error fetching METAR:', error);
+        throw error;
+    }
+},
+
+// Get TAF data for airport(s)
+async getTaf(icao, format = 'json') {
+    try {
+        const url = `${API_CONFIG.baseUrl}taf?ids=${icao}&format=${format}`;
+        const response = await fetchWithTimeout(url);
+        return await parseResponse(response, format);
+    } catch (error) {
+        console.error('Error fetching TAF:', error);
+        throw error;
+    }
+},
+
+// Get both METAR and TAF data in one call
+async getMetarAndTaf(icao, format = 'json') {
+    try {
+        // Since our proxy doesn't have a combined endpoint, fetch both separately
+        const [metarData, tafData] = await Promise.all([
+            this.getMetar(icao, format),
+            this.getTaf(icao, format)
+        ]);
+        
+        // Add TAF data to the first METAR entry
+        if (metarData.length > 0 && tafData.length > 0) {
+            metarData[0].taf = tafData[0];
         }
-    },
-    
-    // Get TAF data for airport(s)
-    async getTaf(icao, format = 'json') {
-        try {
-            const url = `${API_CONFIG.baseUrl}taf?ids=${icao}&format=${format}`;
-            const response = await fetchWithTimeout(url);
-            return await parseResponse(response, format);
-        } catch (error) {
-            console.error('Error fetching TAF:', error);
-            throw error;
-        }
-    },
-    
-    // Get both METAR and TAF data in one call
-    async getMetarAndTaf(icao, format = 'json') {
-        try {
-            const url = `${API_CONFIG.baseUrl}metar?ids=${icao}&format=${format}&taf=true`;
-            const response = await fetchWithTimeout(url);
-            return await parseResponse(response, format);
-        } catch (error) {
-            console.error('Error fetching METAR and TAF:', error);
-            throw error;
-        }
+        
+        return metarData;
+    } catch (error) {
+        console.error('Error fetching METAR and TAF:', error);
+        throw error;
+    }
+
     },
     
     // Placeholder for future NOTAM integration
