@@ -4,7 +4,7 @@
 // Configuration
 const API_CONFIG = {
     // URL of your proxy server
-    baseUrl: 'https://your-proxy-server.vercel.app/api/',
+    baseUrl: 'https://proxy-server4v.vercel.app/api/',
     timeout: 15000 // 15 seconds
 };
 
