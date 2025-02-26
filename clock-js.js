@@ -1,10 +1,24 @@
 // Clock functionality
 function updateClock() {
-    const now = new Date();
-    const utcString = now.toUTCString();
-    const timeStr = utcString.split(' ')[4] + ' UTC';
-    document.getElementById('clock').textContent = timeStr;
+    try {
+        const now = new Date();
+        const utcString = now.toUTCString();
+        const timeStr = utcString.split(' ')[4] + ' UTC';
+        const clockElement = document.getElementById('clock');
+        if (clockElement) {
+            clockElement.textContent = timeStr;
+        }
+    } catch (error) {
+        console.error('Error updating clock:', error);
+    }
 }
 
-setInterval(updateClock, 1000);
-updateClock();
+// Start clock when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        setInterval(updateClock, 1000);
+        updateClock(); // Initial update
+    } catch (error) {
+        console.error('Error initializing clock:', error);
+    }
+});

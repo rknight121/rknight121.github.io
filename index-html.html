@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flight Planning Dashboard</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head> 
 <body>
     <div class="container">
@@ -22,13 +22,17 @@
         </nav>
         
         <main class="main" id="main-content">
-            <!-- Content will be loaded dynamically -->
+            <!-- Fallback content if JS fails to load -->
+            <div class="weather-widget">
+                <div class="loading"><div class="spinner"></div></div>
+                <p>Loading weather information...</p>
+            </div>
         </main>
     </div>
 
-    <script src="js/clock.js"></script>
-    <script src="js/navigation.js"></script>
-    <script src="js/content-loaders.js"></script>
-    <script src="js/main.js"></script>
+    <script src="clock.js"></script>
+    <script src="navigation.js"></script>
+    <script src="content-loaders.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
