@@ -124,6 +124,44 @@ function formatDateString(dateStr) {
     }
 }
 
+// Debugging function to help identify TAF data structure
+function debugTafData(data) {
+    try {
+        console.log('TAF DEBUG - Data type:', typeof data);
+        
+        if (!data) {
+            console.log('TAF DEBUG - Data is null or undefined');
+            return;
+        }
+        
+        if (Array.isArray(data)) {
+            console.log('TAF DEBUG - Data is an array of length:', data.length);
+            if (data.length > 0) {
+                console.log('TAF DEBUG - First item keys:', Object.keys(data[0]));
+                
+                if (data[0].taf) {
+                    console.log('TAF DEBUG - TAF data found in first item');
+                    console.log('TAF DEBUG - TAF keys:', Object.keys(data[0].taf));
+                } else {
+                    console.log('TAF DEBUG - No TAF property in first item');
+                }
+            }
+        } else if (typeof data === 'object') {
+            console.log('TAF DEBUG - Data is an object with keys:', Object.keys(data));
+            
+            if (data.taf) {
+                console.log('TAF DEBUG - TAF property found with keys:', Object.keys(data.taf));
+            } else {
+                console.log('TAF DEBUG - No TAF property in object');
+            }
+        } else {
+            console.log('TAF DEBUG - Unexpected data type');
+        }
+    } catch (e) {
+        console.error('TAF DEBUG - Error analyzing data:', e);
+    }
+}
+
 // Weather API functions
 const WeatherAPI = {
     // Get METAR data for airport(s)
@@ -142,102 +180,100 @@ const WeatherAPI = {
             throw error;
         }
     },
-    // Updated TAF fetching implementation for weather-api.js
-    // Updated TAF fetching implementation for weather-api.js
-
-// Get TAF data for airport(s)
-async function getTaf(icao, format = 'json') {
-    try {
-        // According to OpenAPI spec, use the dedicated TAF endpoint
-        const url = `${API_CONFIG.baseUrl}taf?ids=${icao}&format=${format}`;
-        console.log('Requesting TAF from API:', url);
-        
-        const response = await fetchWithTimeout(url);
-        const data = await parseResponse(response, format);
-        
-        console.log('Received TAF data:', data);
-        return data;
-    } catch (error) {
-        console.error('Error fetching TAF:', error);
-        throw error;
-    }
-}
-
-// Get both METAR and TAF data in one call - Improved implementation
-async function getMetarAndTaf(icao, format = 'json') {
-    try {
-        // Using the combined endpoint with the taf parameter as per OpenAPI spec
-        const url = `${API_CONFIG.baseUrl}metar?ids=${icao}&format=${format}&taf=true`;
-        console.log('Requesting METAR with TAF:', url);
-        
+    
+    // Get TAF data for airport(s)
+    async getTaf(icao, format = 'json') {
         try {
+            // According to OpenAPI spec, use the dedicated TAF endpoint
+            const url = `${API_CONFIG.baseUrl}taf?ids=${icao}&format=${format}`;
+            console.log('Requesting TAF from API:', url);
+            
             const response = await fetchWithTimeout(url);
             const data = await parseResponse(response, format);
             
-            // Log the data structure for debugging
-            console.log('Combined METAR+TAF data structure:', 
-                JSON.stringify(data).substring(0, 300) + '...');
-            
-            // Verify the response contains expected data
-            if (!data || data.length === 0) {
-                throw new Error('No data returned from combined endpoint');
-            }
-            
-            // Check if TAF data is included in the response
-            if (data[0] && data[0].taf) {
-                console.log('TAF data found in combined response');
-            } else {
-                console.warn('TAF data not found in the combined response');
-            }
-            
+            console.log('Received TAF data:', data);
             return data;
-        } catch (combinedError) {
-            console.warn('Combined endpoint failed:', combinedError.message);
-            console.log('Falling back to separate requests...');
-            
-            // If combined endpoint fails, use separate requests
-            const metarPromise = getTaf(icao, format).catch(e => {
-                console.error('METAR fallback error:', e);
-                return null;
-            });
-            
-            const tafPromise = getTaf(icao, format).catch(e => {
-                console.error('TAF fallback error:', e);
-                return null;
-            });
-            
-            const [metarData, tafData] = await Promise.all([metarPromise, tafPromise]);
-            
-            // Construct a combined response
-            if (metarData && metarData.length > 0) {
-                // If we got METAR data but not TAF data
-                if (!tafData || tafData.length === 0) {
-                    console.warn('TAF data not available for', icao);
-                    return metarData;
-                }
-                
-                // Combine the data
-                const combined = JSON.parse(JSON.stringify(metarData));
-                if (combined[0]) {
-                    combined[0].taf = tafData[0];
-                }
-                
-                return combined;
-            } else if (tafData && tafData.length > 0) {
-                // If we only got TAF data (unlikely but handle it)
-                console.warn('Only TAF data available for', icao);
-                return [{ taf: tafData[0], icaoId: icao }];
-            }
-            
-            // If we got neither
-            throw new Error('Neither METAR nor TAF data available');
+        } catch (error) {
+            console.error('Error fetching TAF:', error);
+            throw error;
         }
-    } catch (error) {
-        console.error('Error fetching METAR and TAF:', error);
-        throw error;
-    }
-}
-
+    },
+    
+    // Get both METAR and TAF data in one call - Improved implementation
+    async getMetarAndTaf(icao, format = 'json') {
+        try {
+            // Using the combined endpoint with the taf parameter as per OpenAPI spec
+            const url = `${API_CONFIG.baseUrl}metar?ids=${icao}&format=${format}&taf=true`;
+            console.log('Requesting METAR with TAF:', url);
+            
+            try {
+                const response = await fetchWithTimeout(url);
+                const data = await parseResponse(response, format);
+                
+                // Log the data structure for debugging
+                console.log('Combined METAR+TAF data structure:', 
+                    JSON.stringify(data).substring(0, 300) + '...');
+                
+                // Verify the response contains expected data
+                if (!data || data.length === 0) {
+                    throw new Error('No data returned from combined endpoint');
+                }
+                
+                // Check if TAF data is included in the response
+                if (data[0] && data[0].taf) {
+                    console.log('TAF data found in combined response');
+                } else {
+                    console.warn('TAF data not found in the combined response');
+                }
+                
+                return data;
+            } catch (combinedError) {
+                console.warn('Combined endpoint failed:', combinedError.message);
+                console.log('Falling back to separate requests...');
+                
+                // If combined endpoint fails, use separate requests
+                const metarPromise = this.getMetar(icao, format).catch(e => {
+                    console.error('METAR fallback error:', e);
+                    return null;
+                });
+                
+                const tafPromise = this.getTaf(icao, format).catch(e => {
+                    console.error('TAF fallback error:', e);
+                    return null;
+                });
+                
+                const [metarData, tafData] = await Promise.all([metarPromise, tafPromise]);
+                
+                // Construct a combined response
+                if (metarData && metarData.length > 0) {
+                    // If we got METAR data but not TAF data
+                    if (!tafData || tafData.length === 0) {
+                        console.warn('TAF data not available for', icao);
+                        return metarData;
+                    }
+                    
+                    // Combine the data
+                    const combined = JSON.parse(JSON.stringify(metarData));
+                    if (combined[0]) {
+                        combined[0].taf = tafData[0];
+                    }
+                    
+                    return combined;
+                } else if (tafData && tafData.length > 0) {
+                    // If we only got TAF data (unlikely but handle it)
+                    console.warn('Only TAF data available for', icao);
+                    return [{ taf: tafData[0], icaoId: icao }];
+                }
+                
+                // If we got neither
+                throw new Error('Neither METAR nor TAF data available');
+            }
+        } catch (error) {
+            console.error('Error fetching METAR and TAF:', error);
+            throw error;
+        }
+    },
+    
     // Placeholder for future NOTAM integration
     // This would require a separate API as NOAA doesn't provide NOTAMs
     async getNotams(icao) {
@@ -263,7 +299,7 @@ async function getMetarAndTaf(icao, format = 'json') {
             imageUrl: `https://radar.weather.gov/ridge/standard/${validRegion}_loop.gif`,
             timestamp: new Date().toISOString()
         };
-    }
+    },
     
     // Format METAR data for display
     formatMetarForDisplay(metar) {
@@ -342,99 +378,63 @@ async function getMetarAndTaf(icao, format = 'json') {
             rawMetar,
             html
         };
-    }
-
-    // Update the formatTafForDisplay function to be more robust
-function formatTafForDisplay(taf) {
-    if (!taf) {
-        return {
-            html: '<div class="forecast-item"><h3>No TAF data available</h3></div>',
-            formattedTaf: 'No TAF data available'
-        };
-    }
+    },
     
-    console.log('Formatting TAF data:', taf);
-    
-    // Get the raw TAF text, handling different API response formats
-    let rawTaf = '';
-    if (typeof taf === 'string') {
-        // If the TAF is already a string
-        rawTaf = taf;
-    } else if (taf.rawTAF) {
-        // Format from new API
-        rawTaf = taf.rawTAF;
-    } else if (taf.raw_text) {
-        // Format from legacy API
-        rawTaf = taf.raw_text;
-    } else if (taf.fcsts && taf.fcsts.length > 0 && taf.fcsts[0].raw_text) {
-        // Another possible format
-        rawTaf = taf.fcsts[0].raw_text;
-    } else {
-        // Try to extract raw text from a different location in the object
-        const tafStr = JSON.stringify(taf);
-        const rawMatch = tafStr.match(/"raw_text":"([^"]+)"/);
-        if (rawMatch && rawMatch[1]) {
-            rawTaf = rawMatch[1];
+    // Format TAF data for display
+    formatTafForDisplay(taf) {
+        if (!taf) {
+            return {
+                html: '<div class="forecast-item"><h3>No TAF data available</h3></div>',
+                formattedTaf: 'No TAF data available'
+            };
+        }
+        
+        console.log('Formatting TAF data:', taf);
+        
+        // Get the raw TAF text, handling different API response formats
+        let rawTaf = '';
+        if (typeof taf === 'string') {
+            // If the TAF is already a string
+            rawTaf = taf;
+        } else if (taf.rawTAF) {
+            // Format from new API
+            rawTaf = taf.rawTAF;
+        } else if (taf.raw_text) {
+            // Format from legacy API
+            rawTaf = taf.raw_text;
+        } else if (taf.fcsts && taf.fcsts.length > 0 && taf.fcsts[0].raw_text) {
+            // Another possible format
+            rawTaf = taf.fcsts[0].raw_text;
         } else {
-            // If all else fails, convert the object to a readable format
-            try {
-                rawTaf = 'TAF data format unrecognized: ' + JSON.stringify(taf);
-            } catch (e) {
-                rawTaf = 'TAF data available but format cannot be displayed';
-            }
-        }
-    }
-    
-    // Format the TAF text with line breaks for readability
-    const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
-    
-    const html = `
-        <div class="forecast-item">
-            <h3>TAF</h3>
-            <p style="font-family:monospace; white-space:pre-wrap;">${formattedTaf}</p>
-        </div>
-    `;
-    
-    return { html, rawTaf, formattedTaf };
-}
-
-// Debugging function to help identify TAF data structure
-function debugTafData(data) {
-    try {
-        console.log('TAF DEBUG - Data type:', typeof data);
-        
-        if (!data) {
-            console.log('TAF DEBUG - Data is null or undefined');
-            return;
-        }
-        
-        if (Array.isArray(data)) {
-            console.log('TAF DEBUG - Data is an array of length:', data.length);
-            if (data.length > 0) {
-                console.log('TAF DEBUG - First item keys:', Object.keys(data[0]));
-                
-                if (data[0].taf) {
-                    console.log('TAF DEBUG - TAF data found in first item');
-                    console.log('TAF DEBUG - TAF keys:', Object.keys(data[0].taf));
-                } else {
-                    console.log('TAF DEBUG - No TAF property in first item');
+            // Try to extract raw text from a different location in the object
+            const tafStr = JSON.stringify(taf);
+            const rawMatch = tafStr.match(/"raw_text":"([^"]+)"/);
+            if (rawMatch && rawMatch[1]) {
+                rawTaf = rawMatch[1];
+            } else {
+                // If all else fails, convert the object to a readable format
+                try {
+                    rawTaf = 'TAF data format unrecognized: ' + JSON.stringify(taf);
+                } catch (e) {
+                    rawTaf = 'TAF data available but format cannot be displayed';
                 }
             }
-        } else if (typeof data === 'object') {
-            console.log('TAF DEBUG - Data is an object with keys:', Object.keys(data));
-            
-            if (data.taf) {
-                console.log('TAF DEBUG - TAF property found with keys:', Object.keys(data.taf));
-            } else {
-                console.log('TAF DEBUG - No TAF property in object');
-            }
-        } else {
-            console.log('TAF DEBUG - Unexpected data type');
         }
-    } catch (e) {
-        console.error('TAF DEBUG - Error analyzing data:', e);
+        
+        // Format the TAF text with line breaks for readability
+        const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
+        
+        const html = `
+            <div class="forecast-item">
+                <h3>TAF</h3>
+                <p style="font-family:monospace; white-space:pre-wrap;">${formattedTaf}</p>
+            </div>
+        `;
+        
+        return { html, rawTaf, formattedTaf };
     }
-}
+};
+
 // Log that the API is ready
 console.log('Weather API module loaded');
 

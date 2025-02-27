@@ -5,6 +5,118 @@ function getCurrentUTCTime() {
     return new Date().toUTCString().split(' ')[4] + ' UTC';
 }
 
+// Function to load METAR and TAF for an airport
+// This should be defined BEFORE loadMetarContent which uses it
+const loadAirportData = async (icao) => {
+    try {
+        // Add progress indicator
+        const progressHtml = `
+            <div style="margin-bottom:30px;">
+                <h3>${icao}</h3>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading weather data for ${icao}...</p>
+                </div>
+            </div>
+        `;
+        
+        // Log steps for debugging
+        console.log(`Loading data for ${icao}...`);
+        
+        // Fetch METAR with TAF included
+        const weatherData = await WeatherAPI.getMetarAndTaf(icao);
+        
+        // Debug log the response
+        console.log(`Weather data response for ${icao}:`, weatherData);
+        
+        if (!weatherData || weatherData.length === 0) {
+            console.warn(`No weather data returned for ${icao}`);
+            return `
+                <div style="margin-bottom:30px;">
+                    <h3>${icao}</h3>
+                    <div class="error-message">
+                        <p>No weather data available for this airport.</p>
+                        <p>Please check the airport code or try again later.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Get METAR info
+        const metar = weatherData[0];
+        console.log(`METAR data for ${icao}:`, metar);
+        
+        // Use the helper functions from the API to format the data
+        const metarDisplay = WeatherAPI.formatMetarForDisplay(metar);
+        
+        // Check if TAF exists and log its structure
+        if (metar.taf) {
+            console.log(`TAF data found for ${icao}:`, metar.taf);
+        } else {
+            console.warn(`No TAF data found for ${icao} in the response`);
+        }
+        
+        // Format TAF data if available
+        let tafDisplay = { html: '<p style="font-family:monospace; font-size: 20px;">No TAF available for this airport</p>' };
+        let tafHtml = '';
+        
+        try {
+            if (metar.taf) {
+                tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
+                console.log(`TAF display data for ${icao}:`, tafDisplay);
+            } else {
+                // Try to fetch TAF separately as a fallback
+                console.log(`Attempting to fetch TAF separately for ${icao}`);
+                const tafData = await WeatherAPI.getTaf(icao);
+                
+                if (tafData && tafData.length > 0) {
+                    tafDisplay = WeatherAPI.formatTafForDisplay(tafData[0]);
+                    console.log(`Separately fetched TAF display data for ${icao}:`, tafDisplay);
+                }
+            }
+            
+            // Get formatted TAF HTML
+            tafHtml = tafDisplay.formattedTaf || 'No TAF available for this airport';
+        } catch (tafError) {
+            console.error(`Error formatting TAF for ${icao}:`, tafError);
+            tafHtml = `<p style="color: #ff6b6b;">Error displaying TAF data: ${tafError.message}</p>`;
+        }
+        
+        return `
+            <div style="margin-bottom:30px;">
+                <h3>${metarDisplay.icao || icao} - ${metarDisplay.stationName || 'Unknown'}</h3>
+                <div style="background:#112240; padding:20px; border-radius:8px; margin-bottom:20px;">
+                    <h4>METAR</h4>
+                    <p style="font-family:monospace; font-size: 20px;">${metarDisplay.rawMetar || 'No METAR data'}</p>
+                    <div style="margin-top:15px;">
+                        <p><strong>Wind:</strong> ${metarDisplay.windDir || '---'}° at ${metarDisplay.windSpeed || '---'} kt</p>
+                        <p><strong>Visibility:</strong> ${metarDisplay.visibility || '---'}</p>
+                        <p><strong>Ceiling:</strong> ${metarDisplay.skyConditions || '---'}</p>
+                        <p><strong>Temperature/Dew Point:</strong> ${metarDisplay.temp || '---'} / ${metarDisplay.dewpoint || '---'}</p>
+                        <p><strong>Altimeter:</strong> ${metarDisplay.altimeter || '---'}</p>
+                        <p><strong>Observed:</strong> ${metarDisplay.obsTime || '---'}</p>
+                    </div>
+                </div>
+                <div style="background:#112240; padding:20px; border-radius:8px;">
+                    <h4>TAF</h4>
+                    <p style="font-family:monospace; font-size: 20px;">${tafHtml}</p>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error(`Error loading data for ${icao}:`, error);
+        return `
+            <div style="margin-bottom:30px;">
+                <h3>${icao}</h3>
+                <div class="error-message">
+                    <p>Unable to load weather data for this airport: ${error.message}</p>
+                    <p>Please try again later.</p>
+                </div>
+            </div>
+        `;
+    }
+};
+
 // Load weather content
 async function loadWeatherContent() {
     try {
@@ -136,61 +248,6 @@ async function loadMetarContent() {
         // Default airports to load
         const defaultAirports = ['KJFK', 'KLGA'];
         const airportResults = document.getElementById('airport-data');
-        
-        // Function to load METAR and TAF for an airport
-        const loadAirportData = async (icao) => {
-            try {
-                // Fetch METAR with TAF included
-                const weatherData = await WeatherAPI.getMetarAndTaf(icao);
-                
-                if (!weatherData || weatherData.length === 0) {
-                    return `
-                        <div style="margin-bottom:30px;">
-                            <h3>${icao}</h3>
-                            <div class="error-message">
-                                <p>No weather data available for this airport.</p>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                // Get METAR and TAF info
-                const metar = weatherData[0];
-                
-                // Use the helper functions from the API to format the data
-                const metarDisplay = WeatherAPI.formatMetarForDisplay(metar);
-                
-                // Format TAF data if available
-                let tafDisplay = { html: '<p style="font-family:monospace; font-size: 20px;">No TAF available</p>' };
-                if (metar.taf) {
-                    tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
-                }
-                
-                return `
-                    <div style="margin-bottom:30px;">
-                        <h3>${metarDisplay.icao} - ${metarDisplay.stationName}</h3>
-                        <div style="background:#112240; padding:20px; border-radius:8px; margin-bottom:20px;">
-                            <h4>METAR</h4>
-                            <p style="font-family:monospace; font-size: 20px;">${metarDisplay.rawMetar}</p>
-                        </div>
-                        <div style="background:#112240; padding:20px; border-radius:8px;">
-                            <h4>TAF</h4>
-                            <p style="font-family:monospace; font-size: 20px;">${tafDisplay.formattedTaf || 'No TAF available'}</p>
-                        </div>
-                    </div>
-                `;
-            } catch (error) {
-                console.error(`Error loading data for ${icao}:`, error);
-                return `
-                    <div style="margin-bottom:30px;">
-                        <h3>${icao}</h3>
-                        <div class="error-message">
-                            <p>Unable to load weather data for this airport. Please try again later.</p>
-                        </div>
-                    </div>
-                `;
-            }
-        };
         
         // Load data for default airports
         try {
@@ -466,7 +523,24 @@ function loadSettingsContent() {
                 <h3>Display Settings</h3>
                 <div style="margin:20px 0;">
                     <label style="display:block; margin-bottom:10px;">Default Airport:</label>
-                    <input type="text" id="default-airport" value="${localStorage.getItem('defaultAirport') || 'KJFK'}" style="padding:12px; width:250
+                    <input type="text" id="default-airport" value="${localStorage.getItem('defaultAirport') || 'KJFK'}" style="padding:12px; width:250px;">
+                </div>
+                <button id="save-settings" class="nav-item" style="margin-top:20px;">Save Settings</button>
+            </div>
+        </div>
     `;
-}
     
+    // Add event listener for the save button
+    const saveButton = document.getElementById('save-settings');
+    const airportInput = document.getElementById('default-airport');
+    
+    if (saveButton && airportInput) {
+        saveButton.addEventListener('click', () => {
+            const airport = airportInput.value.trim().toUpperCase();
+            if (airport) {
+                localStorage.setItem('defaultAirport', airport);
+                alert('Settings saved!');
+            }
+        });
+    }
+}
