@@ -132,7 +132,7 @@ async function loadWeatherContent() {
         `;
         
         // Default airport code
-        const defaultAirport = localStorage.getItem('defaultAirport') || 'KHRX';
+        const defaultAirport = localStorage.getItem('defaultAirport') || 'KAMA';
         
         // Fetch the weather data with METAR and TAF
         let weatherData;
@@ -523,7 +523,7 @@ function loadSettingsContent() {
                 <h3>Display Settings</h3>
                 <div style="margin:20px 0;">
                     <label style="display:block; margin-bottom:10px;">Default Airport:</label>
-                    <input type="text" id="default-airport" value="${localStorage.getItem('defaultAirport') || 'KHRX'}" style="padding:12px; width:250px;">
+                    <input type="text" id="default-airport" value="${localStorage.getItem('defaultAirport') || 'KAMA'}" style="padding:12px; width:250px;">
                 </div>
                 <button id="save-settings" class="nav-item" style="margin-top:20px;">Save Settings</button>
             </div>
