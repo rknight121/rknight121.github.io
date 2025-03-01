@@ -497,21 +497,6 @@ formatTafForDisplay(taf) {
                 margin: 5px 0;
             }
         </style>
-        <script>
-            function switchTafTab(tabName) {
-                // Hide all tabs
-                document.querySelectorAll('.taf-tab-content').forEach(tab => {
-                    tab.classList.remove('active');
-                });
-                document.querySelectorAll('.taf-tab-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                // Show selected tab
-                document.getElementById(tabName + '-tab').classList.add('active');
-                document.getElementById(tabName + '-tab-btn').classList.add('active');
-            }
-        </script>
     `;
     
     return { html, rawTaf, formattedTaf };
