@@ -388,6 +388,14 @@ const WeatherAPI = {
                 formattedTaf: 'No TAF data available'
             };
         }
+        let tafDisplay = { html: '<div class="forecast-item"><h3>No TAF data available</h3></div>' };
+        if (metar.taf) {
+            tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
+        } else if (metar.rawTaf) {
+         // Check for TAF directly on the METAR object
+            tafDisplay = WeatherAPI.formatTafForDisplay(metar.rawTaf);
+}
+
         
         console.log('Formatting TAF data:', taf);
         

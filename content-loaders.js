@@ -64,6 +64,9 @@ const loadAirportData = async (icao) => {
             if (metar.taf) {
                 tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
                 console.log(`TAF display data for ${icao}:`, tafDisplay);
+            } else if (metar.rawTaf) {
+                // Check for direct TAF property
+                tafDisplay = WeatherAPI.formatTafForDisplay(metar.rawTaf);
             } else {
                 // Try to fetch TAF separately as a fallback
                 console.log(`Attempting to fetch TAF separately for ${icao}`);
@@ -109,8 +112,8 @@ const loadAirportData = async (icao) => {
             <div style="margin-bottom:30px;">
                 <h3>${icao}</h3>
                 <div class="error-message">
-                    <p>Unable to load weather data for this airport: ${error.message}</p>
-                    <p>Please try again later.</p>
+                    <p>Error loading weather data for this airport.</p>
+                    <p>${error.message}</p>
                 </div>
             </div>
         `;
