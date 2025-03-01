@@ -385,64 +385,57 @@ const WeatherAPI = {
         };
     },
     
-    // Format TAF data for display
-    formatTafForDisplay(taf) {
-        if (!taf) {
-            return {
-                html: '<div class="forecast-item"><h3>No TAF data available</h3></div>',
-                formattedTaf: 'No TAF data available'
-            };
-        }
-        
-        console.log('Formatting TAF data:', taf);
-
-        let tafDisplay = { html: '<div class="forecast-item"><h3>No TAF data available</h3></div>' };
-        if (metar.taf) {
-            tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
-        } else if (metar.rawTaf) {
-         // Check for TAF directly on the METAR object
-            tafDisplay = WeatherAPI.formatTafForDisplay(metar.rawTaf);
-        
-        // Get the raw TAF text, handling different API response formats
-        let rawTaf = '';
-        if (typeof taf === 'string') {
-            // If the TAF is already a string (like rawTaf)
-            rawTaf = taf;
-        } else if (taf.rawTAF) {
-            rawTaf = taf.rawTAF;
-        } else if (taf.raw_text) {
-            rawTaf = taf.raw_text;
-        } else if (taf.fcsts && taf.fcsts.length > 0 && taf.fcsts[0].raw_text) {
-            // Another possible format
-            rawTaf = taf.fcsts[0].raw_text;
+// Format TAF data for display
+formatTafForDisplay(taf) {
+    if (!taf) {
+        return {
+            html: '<div class="forecast-item"><h3>No TAF data available</h3></div>',
+            formattedTaf: 'No TAF data available'
+        };
+    }
+    
+    console.log('Formatting TAF data:', taf);
+    
+    // Get the raw TAF text, handling different API response formats
+    let rawTaf = '';
+    if (typeof taf === 'string') {
+        // If the TAF is already a string (like rawTaf)
+        rawTaf = taf;
+    } else if (taf.rawTAF) {
+        rawTaf = taf.rawTAF;
+    } else if (taf.raw_text) {
+        rawTaf = taf.raw_text;
+    } else if (taf.fcsts && taf.fcsts.length > 0 && taf.fcsts[0].raw_text) {
+        // Another possible format
+        rawTaf = taf.fcsts[0].raw_text;
+    } else {
+        // Try to extract raw text from a different location in the object
+        const tafStr = JSON.stringify(taf);
+        const rawMatch = tafStr.match(/"raw_text":"([^"]+)"/);
+        if (rawMatch && rawMatch[1]) {
+            rawTaf = rawMatch[1];
         } else {
-            // Try to extract raw text from a different location in the object
-            const tafStr = JSON.stringify(taf);
-            const rawMatch = tafStr.match(/"raw_text":"([^"]+)"/);
-            if (rawMatch && rawMatch[1]) {
-                rawTaf = rawMatch[1];
-            } else {
-                // If all else fails, convert the object to a readable format
-                try {
-                    rawTaf = 'TAF data format unrecognized: ' + JSON.stringify(taf);
-                } catch (e) {
-                    rawTaf = 'TAF data available but format cannot be displayed';
-                }
+            // If all else fails, convert the object to a readable format
+            try {
+                rawTaf = 'TAF data format unrecognized: ' + JSON.stringify(taf);
+            } catch (e) {
+                rawTaf = 'TAF data available but format cannot be displayed';
             }
         }
     }
-        // Format the TAF text with line breaks for readability
-        const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
-        
-        const html = `
-            <div class="forecast-item">
-                <h3>TAF</h3>
-                <p style="font-family:monospace; white-space:pre-wrap;">${formattedTaf}</p>
-            </div>
-        `;
-        
-        return { html, rawTaf, formattedTaf };
-    }
+    
+    // Format the TAF text with line breaks for readability
+    const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
+    
+    const html = `
+        <div class="forecast-item">
+            <h3>TAF</h3>
+            <p style="font-family:monospace; white-space:pre-wrap;">${formattedTaf}</p>
+        </div>
+    `;
+    
+    return { html, rawTaf, formattedTaf };
+}
 };
 
 // Log that the API is ready
