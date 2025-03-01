@@ -220,8 +220,13 @@ const WeatherAPI = {
                 }
                 
                 // Check if TAF data is included in the response
-                if (data[0] && data[0].taf) {
+                if (data[0] && (data[0].taf || data[0].rawTaf)) {
                     console.log('TAF data found in combined response');
+                    
+                    // If we have rawTaf instead of taf, create a taf property for compatibility
+                    if (data[0].rawTaf && !data[0].taf) {
+                        data[0].taf = data[0].rawTaf;
+                    }
                 } else {
                     console.warn('TAF data not found in the combined response');
                 }
@@ -388,27 +393,24 @@ const WeatherAPI = {
                 formattedTaf: 'No TAF data available'
             };
         }
+        
+        console.log('Formatting TAF data:', taf);
+
         let tafDisplay = { html: '<div class="forecast-item"><h3>No TAF data available</h3></div>' };
         if (metar.taf) {
             tafDisplay = WeatherAPI.formatTafForDisplay(metar.taf);
         } else if (metar.rawTaf) {
          // Check for TAF directly on the METAR object
             tafDisplay = WeatherAPI.formatTafForDisplay(metar.rawTaf);
-}
-
-        
-        console.log('Formatting TAF data:', taf);
         
         // Get the raw TAF text, handling different API response formats
         let rawTaf = '';
         if (typeof taf === 'string') {
-            // If the TAF is already a string
+            // If the TAF is already a string (like rawTaf)
             rawTaf = taf;
         } else if (taf.rawTAF) {
-            // Format from new API
             rawTaf = taf.rawTAF;
         } else if (taf.raw_text) {
-            // Format from legacy API
             rawTaf = taf.raw_text;
         } else if (taf.fcsts && taf.fcsts.length > 0 && taf.fcsts[0].raw_text) {
             // Another possible format
@@ -428,7 +430,7 @@ const WeatherAPI = {
                 }
             }
         }
-        
+    }
         // Format the TAF text with line breaks for readability
         const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
         
