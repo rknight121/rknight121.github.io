@@ -385,7 +385,7 @@ const WeatherAPI = {
         };
     },
     
-// Format TAF data for display
+// Enhanced Format TAF data for display with decoded information
 formatTafForDisplay(taf) {
     if (!taf) {
         return {
@@ -427,11 +427,91 @@ formatTafForDisplay(taf) {
     // Format the TAF text with line breaks for readability
     const formattedTaf = rawTaf.replace(/\s(FM|BECMG|TEMPO|PROB)/g, '<br>$&');
     
+    // Decode the TAF into a human-readable format
+    const decodedTaf = decodeTaf(rawTaf);
+    
+    // Create tabbed interface for both raw and decoded TAF
     const html = `
         <div class="forecast-item">
             <h3>TAF</h3>
-            <p style="font-family:monospace; white-space:pre-wrap;">${formattedTaf}</p>
+            <div class="taf-tabs">
+                <div class="taf-tab-header">
+                    <button id="raw-tab-btn" class="taf-tab-btn active" onclick="switchTafTab('raw')">Raw Format</button>
+                    <button id="decoded-tab-btn" class="taf-tab-btn" onclick="switchTafTab('decoded')">Human Readable</button>
+                </div>
+                <div id="raw-tab" class="taf-tab-content active">
+                    <p style="font-family:monospace; font-size: 20px; white-space:pre-wrap;">${formattedTaf}</p>
+                </div>
+                <div id="decoded-tab" class="taf-tab-content">
+                    ${decodedTaf}
+                </div>
+            </div>
         </div>
+        <style>
+            .taf-tabs {
+                border: 1px solid #1d3557;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .taf-tab-header {
+                display: flex;
+                background-color: #0a192f;
+                border-bottom: 1px solid #1d3557;
+            }
+            .taf-tab-btn {
+                background: none;
+                border: none;
+                color: #fff;
+                padding: 12px 20px;
+                cursor: pointer;
+                flex: 1;
+                font-size: 16px;
+                transition: all 0.3s;
+            }
+            .taf-tab-btn.active {
+                background-color: #64ffda;
+                color: #0a192f;
+                font-weight: bold;
+            }
+            .taf-tab-content {
+                display: none;
+                padding: 15px;
+            }
+            .taf-tab-content.active {
+                display: block;
+            }
+            .taf-decoded h3 {
+                color: #64ffda;
+                margin-top: 0;
+            }
+            .taf-decoded h4 {
+                color: #64ffda;
+                margin-top: 15px;
+                border-bottom: 1px solid #1d3557;
+                padding-bottom: 5px;
+            }
+            .taf-period {
+                margin-bottom: 15px;
+            }
+            .taf-period p {
+                margin: 5px 0;
+            }
+        </style>
+        <script>
+            function switchTafTab(tabName) {
+                // Hide all tabs
+                document.querySelectorAll('.taf-tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelectorAll('.taf-tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // Show selected tab
+                document.getElementById(tabName + '-tab').classList.add('active');
+                document.getElementById(tabName + '-tab-btn').classList.add('active');
+            }
+        </script>
     `;
     
     return { html, rawTaf, formattedTaf };
